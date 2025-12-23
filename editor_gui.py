@@ -5,7 +5,10 @@ from save_logic import SaveFile
 
 class SaveEditorGUI:
     def __init__(self, root):
+        self.icons = {}
         self.root = root
+        self.load_icons()
+       
         self.root.title("Chaos Legion Save Editor")
 
         self.save = SaveFile()
@@ -19,11 +22,19 @@ class SaveEditorGUI:
         self.status_frame.pack(padx=10, pady=10, fill="x")
 
         self.lbl_guild = tk.Label(self.status_frame, text="Guild: N/A")
-        self.lbl_arrow = tk.Label(self.status_frame, text="Arrow: N/A")
+        self.lbl_hatred = tk.Label(self.status_frame, text="Hatred: N/A") #NA
+        self.lbl_malice = tk.Label(self.status_frame, text="Malice: N/A")
+        self.lbl_blasphemy = tk.Label(self.status_frame, text="Blasphemy: N/A") #NA
+        self.lbl_arrogance = tk.Label(self.status_frame, text="Arrogance: N/A") #NA
+        self.lbl_flawed = tk.Label(self.status_frame, text="Flawed: N/A") #NA
         self.lbl_thanatos = tk.Label(self.status_frame, text="Thanatos: N/A")
 
         self.lbl_guild.pack(anchor="w")
-        self.lbl_arrow.pack(anchor="w")
+        self.lbl_hatred.pack(anchor="w")
+        self.lbl_malice.pack(anchor="w")
+        self.lbl_blasphemy.pack(anchor="w")
+        self.lbl_arrogance.pack(anchor="w")
+        self.lbl_flawed.pack(anchor="w")
         self.lbl_thanatos.pack(anchor="w")
 
         tk.Button(root, text="Legion Unlock", command=self.legion_menu).pack(pady=5)
@@ -31,6 +42,18 @@ class SaveEditorGUI:
         tk.Button(root, text="Save & Exit", command=self.save_and_exit).pack(pady=5)
 
     # ---------- GUI Actions ----------
+
+    def load_icons(self):
+        try:
+            self.icons[f"thanatos"] = tk.PhotoImage(file=f"icons/thanatos/Main.png")
+            self.icons[f"guild"] = tk.PhotoImage(file=f"icons/guild/Main.png")
+            self.icons[f"malice"] = tk.PhotoImage(file=f"icons/malice/Main.png")
+            for lvl in range(2):
+                self.icons[f"game_level"] = tk.PhotoImage(
+                    file=f"icons/game_levels/lvl{lvl}.png"
+                )
+        except Exception as e:
+            messagebox.showerror("Icon error", str(e))
 
     def select_file(self):
         path = filedialog.askopenfilename(filetypes=[("Chaos Legion Save", "*.DAT")])
@@ -50,8 +73,8 @@ class SaveEditorGUI:
         self.lbl_guild.config(
             text=f"Guild: {'UNLOCKED' if self.save.guild_unlocked() else 'LOCKED'}"
         )
-        self.lbl_arrow.config(
-            text=f"Arrow: {'UNLOCKED' if self.save.arrow_unlocked() else 'LOCKED'}"
+        self.lbl_malice.config(
+            text=f"Malice: {'UNLOCKED' if self.save.malice_unlocked() else 'LOCKED'}"
         )
         self.lbl_thanatos.config(
             text=f"Thanatos: {'UNLOCKED' if self.save.thanatos_unlocked() else 'LOCKED'}"
@@ -69,16 +92,18 @@ class SaveEditorGUI:
             unlocked = legion.is_unlocked()
             color = "green" if unlocked else "red"
             status = "UNLOCKED" if unlocked else "LOCKED"
+            icon = self.icons.get(f"{legion.name.lower()}")
 
-        btn = tk.Button(
-        win,
-        text=f"{legion.name} [{status}]",
-        bg=color,
-        fg="white",
-        width=30,
-        command=lambda l=legion: self._on_legion_selected(l, win)
-        )
-        btn.pack(padx=10, pady=5)
+            btn = tk.Button(
+            win,
+            text=f"{legion.name} [{status}]",
+            image=icon,
+            compound="left",
+            anchor="w",
+            width=220,
+            command=lambda l=legion: self._on_legion_selected(l, win)
+            )
+            btn.pack(padx=10, pady=5)
 
     def _on_legion_selected(self, legion, win):
         legion.unlock()

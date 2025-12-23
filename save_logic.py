@@ -17,7 +17,7 @@ class SaveFile:
     SAVE_SIZE = 592
 
     OFFSETS = {
-        "arrow_crest": 0xFE,
+        "malice_crest": 0xFE,
         "thanatos_chip": 0x103,
         "thanatos_crest": 0x104,
         "legions_mask": 0x15,
@@ -56,7 +56,7 @@ class SaveFile:
     def guild_unlocked(self):
         return self.data[self.OFFSETS["legions_mask"]] > 0 or 0x05 or 0xF7 or 0x77
 
-    def arrow_unlocked(self):
+    def malice_unlocked(self):
         return self.data[self.OFFSETS["legions_mask"]] & 0x05 or 0xF7 or 0x77
 
     def thanatos_unlocked(self):
@@ -67,7 +67,7 @@ class SaveFile:
     def unlock_guild(self):
         self.data[self.OFFSETS["legions_mask"]] |= 0xF7
 
-    def unlock_arrow(self):
+    def unlock_malice(self):
         self.data[self.OFFSETS["legions_mask"]] |= 0xF7
 
     def unlock_thanatos(self):
@@ -100,10 +100,10 @@ class SaveFile:
             unlock=self.unlock_guild
         ),
         Legion(
-            name="Arrow",
+            name="Malice",
             max_level=None,
-            is_unlocked=self.arrow_unlocked,
-            unlock=self.unlock_arrow
+            is_unlocked=self.malice_unlocked,
+            unlock=self.unlock_malice
         ),
         Legion(
             name="Thanatos",

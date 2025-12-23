@@ -24,6 +24,21 @@
     <Compile Include="editor_gui.py" />
     <Compile Include="save_logic.py" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="icons\" />
+    <Folder Include="icons\game_levels\" />
+    <Folder Include="Icons\Guild\" />
+    <Folder Include="icons\malice\" />
+    <Folder Include="Icons\thanatos\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Icons\game_levels\lvl0.png" />
+    <Content Include="Icons\game_levels\lvl1.png" />
+    <Content Include="Icons\game_levels\lvl2.png" />
+    <Content Include="Icons\Guild\Main.png" />
+    <Content Include="icons\malice\Main.png" />
+    <Content Include="Icons\Thanatos\Main.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
        Visual Studio and specify your pre- and post-build commands in
