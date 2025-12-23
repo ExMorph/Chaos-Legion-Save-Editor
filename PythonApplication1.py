@@ -1,116 +1,192 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox, simpledialog
 from pathlib import Path
 import shutil
-import tkinter as tk
-from tkinter import filedialog
 
 SAVE_SIZE = 592
 
-# ---------- File selection ----------
+# ______________ OFFSETS ______________
 
-def select_save_file():
-    root = tk.Tk()
-    root.withdraw()
-    return filedialog.askopenfilename(
-        title="Select Chaos Legion save file",
-        filetypes=[("Chaos Legion Save", "*.DAT")]
-    )
+OFFSETS = {
+    "guild_flag": 0xFE,
+    "legion_mask": 0x107,
+    "current_level": 0x201,
+    "sword_lvl": (0x49, 0x4A, 0x4B),
+    "exp": (0x65, 0x66, 0x67, 0x68),
+}
 
-# ---------- Save handling ----------
+LEGIONS = {
+    1: "Guild",
+    2: "Arrow",
+    3: "Thanatos"
+}
 
-def load_save(path):
-    data = bytearray(Path(path).read_bytes())
-    if len(data) != SAVE_SIZE:
-        raise ValueError("Unexpected save file size")
-    return data
+# ______________ STATUS CHECKS ______________
 
-def save(path, data):
-    Path(path).write_bytes(data)
+def guild_unlocked(data):
+    return data[OFFSETS["guild_flag"]] > 0
 
-def backup(path):
-    path = Path(path)
-    backup_dir = Path("backups")
-    backup_dir.mkdir(exist_ok=True)
-    shutil.copy(path, backup_dir / path.name)
+def arrow_unlocked(data):
+    return data[OFFSETS["legion_mask"]] & 0x01
 
-# ---------- Game edits ----------
+def thanatos_unlocked(data):
+    return data[OFFSETS["legion_mask"]] == 0xF7
 
-def enable_thanatos(data):
-    data[0x104] = 0x01     # Thanatos unlocked
-    data[0x15]  = 0xF7     # Ultimate item
-    data[0x43]  = 0x00     # Level
-    data[0x65]  = 0x00     # EXP
-    data[0x66]  = 0x00
-    data[0x67]  = 0x00
-    data[0x68]  = 0x00
+# ______________ GUI ______________
 
-def get_current_level(data):
-    return data[0x201]
+class ChaosLegionEditorGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Chaos Legion Save Editor")
 
-def set_level(data):
-    print(f"Current level: {get_current_level(data):02}")
-    print("Set level (00–14)")
+        self.data = None
+        self.save_path = None
 
-    while True:
-        choice = input("> ").strip()
+        tk.Button(root, text="Select Save File", command=self.load_save).pack(pady=5)
 
-        if not choice.isdigit():
-            print("Please enter a number (00–14)")
-            continue
+        self.file_label = tk.Label(root, text="No file selected", wraplength=480)
+        self.file_label.pack()
 
-        lvl = int(choice)
+        self.legion_frame = tk.LabelFrame(root, text="Legions")
+        self.legion_frame.pack(padx=10, pady=10, fill="x")
 
-        if lvl < 0 or lvl > 14:
-            print("Level must be between 00 and 14")
-            continue
+        self.legion_labels = {}
+        for lid, name in LEGIONS.items():
+            lbl = tk.Label(self.legion_frame, text=f"{lid}. {name}: N/A")
+            lbl.pack(anchor="w")
+            self.legion_labels[lid] = lbl
 
-        data[0x201] = lvl
-        print(f"Level set to {lvl:02}")
-        break
+        tk.Button(root, text="Open Legion Menu", command=self.open_legion_menu).pack(pady=5)
+        tk.Button(root, text="Set Level (from 01 to 14)",  command=lambda: self.set_level()).pack(fill="x")
+        tk.Button(root, text="Save & Exit", command=self.save_and_exit).pack(pady=5)
 
-# ---------- Main menu ----------
+    # ______________ FILE ______________
 
-def main():
-    print("Chaos Legion Save Editor")
-    print("------------------------")
+    def load_save(self):
+        path = filedialog.askopenfilename(
+            title="Select Chaos Legion save",
+            filetypes=[("Chaos Legion Save", "*.DAT")]
+        )
+        if not path:
+            return
 
-    save_path = select_save_file()
-    if not save_path:
-        print("No file selected. Exiting.")
-        return
+        try:
+            data = bytearray(Path(path).read_bytes())
+            if len(data) != SAVE_SIZE:
+                raise ValueError("Invalid save size")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            return
 
-    print(f"Selected file: {save_path}")
+        backup_dir = Path("backups")
+        backup_dir.mkdir(exist_ok=True)
+        shutil.copy(path, backup_dir / Path(path).name)
 
-    try:
-        data = load_save(save_path)
-    except Exception as e:
-        print(f"Error: {e}")
-        return
+        self.data = data
+        self.save_path = path
+        self.file_label.config(text=path)
+        self.refresh_legion_status()
 
-    backup(save_path)
-    print("Backup created.\n")
+    # ______________ STATUS ______________
 
-    while True:
-        print("\nMenu:")
-        print("1 - Enable Thanatos egg")
-        print("2 - Set current level")
-        print("0 - Save and exit")
+    def refresh_legion_status(self):
+        if not self.data:
+            return
 
-        choice = input("> ").strip()
+        self.legion_labels[1].config(
+            text=f"1. Guild: {'UNLOCKED' if guild_unlocked(self.data) else 'LOCKED'}"
+        )
+        self.legion_labels[2].config(
+            text=f"2. Arrow: {'UNLOCKED' if arrow_unlocked(self.data) else 'LOCKED'}"
+        )
+        self.legion_labels[3].config(
+            text=f"3. Thanatos: {'UNLOCKED' if thanatos_unlocked(self.data) else 'LOCKED'}"
+        )
 
-        if choice == "1":
-            enable_thanatos(data)
-            print("Thanatos enabled.")
+    # ______________ LEGION MENU ______________
 
-        elif choice == "2":
-            set_level(data)
+    def open_legion_menu(self):
+        if not self.data:
+            messagebox.showwarning("No save", "Load a save file first")
+            return
 
-        elif choice == "0":
-            save(save_path, data)
-            print("Save updated. You can now load it in-game.")
-            break
+        legion_id = simpledialog.askinteger(
+            "Legion",
+            "Enter legion number:\n1 - Guild\n2 - Arrow\n3 - Thanatos\n0 - Cancel",
+            minvalue=0,
+            maxvalue=3
+        )
 
-        else:
-            print("Unknown option.")
+        if not legion_id or legion_id == 0:
+            return
+
+        name = LEGIONS[legion_id]
+        win = tk.Toplevel(self.root)
+        win.title(f"{name} Legion")
+
+        tk.Label(win, text=f"{name} Legion").pack(pady=5)
+
+        tk.Button(win, text="Unlock Legion",
+                  command=lambda: self.unlock_legion(legion_id)).pack(fill="x")
+
+        tk.Button(win, text="Set Legion Level (from 00 to 14)",
+                  command=lambda: self.set_level()).pack(fill="x")
+
+        tk.Button(win, text="Reset EXP",
+                  command=lambda: self.reset_exp()).pack(fill="x")
+
+        if legion_id == 1:
+            tk.Button(win, text="Reset Sword Level",
+                      command=self.reset_sword).pack(fill="x")
+
+        tk.Button(win, text="Back", command=win.destroy).pack(pady=5)
+
+    # ______________ ACTIONS ______________
+
+    def unlock_legion(self, legion_id):
+        if legion_id == 1:
+            self.data[OFFSETS["guild_flag"]] = 1
+            self.data[OFFSETS["legion_mask"]] |= 0x01
+        elif legion_id == 2:
+            self.data[OFFSETS["legion_mask"]] |= 0x01
+        elif legion_id == 3:
+            self.data[OFFSETS["legion_mask"]] = 0xF7
+
+        self.refresh_legion_status()
+        messagebox.showinfo("Done", "Legion unlocked")
+
+    def set_level(self):
+        lvl = simpledialog.askinteger(
+            "Set Level",
+            "Enter level (from 0 to 14)",
+            minvalue=0,
+            maxvalue=14
+        )
+        if lvl is None:
+            return
+        self.data[OFFSETS["current_level"]] = lvl
+        messagebox.showinfo("Done", f"Level set to {lvl:02}")
+
+    def reset_exp(self):
+        for o in OFFSETS["exp"]:
+            self.data[o] = 0
+        messagebox.showinfo("Done", "EXP reset")
+
+    def reset_sword(self):
+        for o in OFFSETS["sword_lvl"]:
+            self.data[o] = 0
+        messagebox.showinfo("Done", "Sword level reset")
+
+    # ______________ SAVE ______________
+
+    def save_and_exit(self):
+        if self.data and self.save_path:
+            Path(self.save_path).write_bytes(self.data)
+        self.root.destroy()
+
+# ______________ RUN ______________
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = ChaosLegionEditorGUI(root)
+    root.mainloop()
