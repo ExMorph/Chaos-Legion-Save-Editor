@@ -36,16 +36,16 @@ class SaveEditorGUI:
         self.create_legion_buttons()
 
         # --- кнопка сохранени¤ ---
-        tk.Button(root, text="Save & Exit", command=self.save_and_exit).pack(pady=5)
+        tk.Button(root, text="Exit", command=self.save_and_exit).pack(pady=5)
 
     # ---------- GUI Actions ----------
 
     def load_icons(self):
         try:
             self.icons["thanatos"] = tk.PhotoImage(file="icons/thanatos/Main.png")
-            self.icons["guild"] = tk.PhotoImage(file="icons/guild/Main.png")
+            self.icons["guilt"] = tk.PhotoImage(file="icons/guild/Main.png")
             self.icons["malice"] = tk.PhotoImage(file="icons/malice/Main.png")
-            self.icons["blasphemous"] = tk.PhotoImage(file="icons/blasphemous/Main.png")
+            self.icons["blasphemy"] = tk.PhotoImage(file="icons/blasphemous/Main.png")
             self.icons["arrogance"] = tk.PhotoImage(file="icons/arrogance/Main.png")
             self.icons["flawed"] = tk.PhotoImage(file="icons/flawed/Main.png")
             self.icons["hatred"] = tk.PhotoImage(file="icons/hatred/Main.png")
@@ -126,14 +126,16 @@ class SaveEditorGUI:
             tk.Label(self.legions_frame, text="Load save first").pack()
             return
 
-        for legion in self.save.get_legions():
+        # берём список легионов, исключаем Null и разворачиваем порядок
+        legions = [l for l in self.save.get_legions() if l.name != "Null"]
+        legions.reverse()  # теперь Guilt → Thanatos
+
+        for legion in legions:
             unlocked = legion.is_unlocked()
             status = "UNLOCKED" if unlocked else "LOCKED"
             color = "green" if unlocked else "red"
             icon = self.icons.get(legion.name.lower())
-                    
 
-            # создаЄм кнопку с отладкой
             btn = tk.Button(
                 self.legions_frame,
                 text=f"{legion.name} [{status}]",
@@ -147,44 +149,31 @@ class SaveEditorGUI:
             btn.pack(padx=10, pady=5, fill="x")
 
 
-    def _can_unlock_legion(self, legion):
-        mask = self.save.data[self.save.OFFSETS["legions_mask"]]
-
-        if legion.name == "Empty":
-            # Guild доступен всегда
-            return True
-        if legion.name == "Guild":
-            # Guild доступен всегда
-            return True
-        if legion.name == "Malice":
-            # Malice доступен всегда (по логике SaveFile)
-            return True
-        if legion.name == "Thanatos":
-            # Thanatos доступен только при маске 0xF7
-            return True
-        return False
-
-
     def _on_legion_selected(self, legion):
         mask_before = self.save.data[self.save.OFFSETS["legions_mask"]]
-        print(f"Unlocking {legion.name}, mask before: {hex(mask_before)}")
+        print(f"Toggling {legion.name}, mask before: {hex(mask_before)}")
 
-        legion.unlock()
+        if legion.is_unlocked():
+            legion.lock()
+            action = "locked"
+        else:
+            legion.unlock()
+            action = "unlocked"
 
         mask_after = self.save.data[self.save.OFFSETS["legions_mask"]]
         print(f"mask after: {hex(mask_after)}")
 
-        #self.refresh_status()
-        if legion.name == "Empty":
-            messagebox.showinfo("Done", f"All legions locked \nWarning! \nWhen opening the Level Up menu the game crashes \nLoad your save file and resave")
+        # уведомление
+        if self.save._get_mask() == 0x00:
+            messagebox.showinfo("Info", "All legions closed.\nWarning: When opening the Level Up menu the game crashes \nLoad your save file and resave")
         else:
-            messagebox.showinfo("Done", f"{legion.name} unlocked \nLoad your save file and resave")
+            messagebox.showinfo("Done", f"{legion.name} {action}")
+
         self.create_legion_buttons()
         self.save.save()
 
 
     def save_and_exit(self):
-        self.save.save()
         self.root.destroy()
 
 
