@@ -12,6 +12,13 @@ class Legion:
     unlock: Callable[[], None]
     set_level: Optional[Callable[[int], None]] = None
 
+@dataclass
+class LevelTarget:
+    name: str
+    get_stage: Callable[[], int]
+    set_stage: Callable[[int], None]
+    icon_key: Optional[str] = None
+
 class SaveFile:
 
     SAVE_SIZE = 592
@@ -53,22 +60,52 @@ class SaveFile:
 
     # ---------- Status ----------
 
+    def all_legions_locked(self):
+        return self.data[self.OFFSETS["legions_mask"]] == 00
+
     def guild_unlocked(self):
-        return self.data[self.OFFSETS["legions_mask"]] > 0 or 0x05 or 0xF7 or 0x77
+        return self.data[self.OFFSETS["legions_mask"]] in (0x01, 0x05, 0xF7, 0x77)
 
     def malice_unlocked(self):
-        return self.data[self.OFFSETS["legions_mask"]] & 0x05 or 0xF7 or 0x77
+        return self.data[self.OFFSETS["legions_mask"]] in (0x04, 0x05, 0x06, 0xF7, 0x77)
+
+    def blasphemous_unlocked(self):
+        return self.data[self.OFFSETS["legions_mask"]] in (0xF7, 0x77)
+
+    def arrogance_unlocked(self):
+        return self.data[self.OFFSETS["legions_mask"]] in (0xF7, 0x77)
+
+    def flawed_unlocked(self):
+        return self.data[self.OFFSETS["legions_mask"]] in (0xF7, 0x77)
+
+    def hatred_unlocked(self):
+        return self.data[self.OFFSETS["legions_mask"]] in (0x02, 0x06, 0x07, 0xF7, 0x77)
 
     def thanatos_unlocked(self):
         return self.data[self.OFFSETS["legions_mask"]] == 0xF7
 
     # ---------- Actions ----------
 
+    def lock_all_legions(self):
+        self.data[self.OFFSETS["legions_mask"]] = 0x00
+
     def unlock_guild(self):
-        self.data[self.OFFSETS["legions_mask"]] |= 0xF7
+        self.data[self.OFFSETS["legions_mask"]] = 0x01
 
     def unlock_malice(self):
-        self.data[self.OFFSETS["legions_mask"]] |= 0xF7
+        self.data[self.OFFSETS["legions_mask"]] |= 0x04
+
+    def unlock_blasphemous(self):
+        self.data[self.OFFSETS["legions_mask"]] = 0x77
+
+    def unlock_arrogance(self):
+        self.data[self.OFFSETS["legions_mask"]] = 0x77
+
+    def unlock_flawed(self):
+        self.data[self.OFFSETS["legions_mask"]] = 0x77
+
+    def unlock_hatred(self):
+        self.data[self.OFFSETS["legions_mask"]] |= 0x02#0x07
 
     def unlock_thanatos(self):
         self.data[self.OFFSETS["legions_mask"]] = 0xF7
@@ -78,10 +115,26 @@ class SaveFile:
         self.data[self.OFFSETS["thanatos_exp"]] = lvl
 
     # Game Level
-    def set_level(self, lvl: int):
-        if not 0 <= lvl <= 14:
-            raise ValueError("Level out of range")
+
+    def get_game_level_target(self):
+        return LevelTarget(
+        name="Stage",
+        get_stage=self.get_current_stage,
+        set_stage=self.set_current_stage,
+        icon_key="game_stage"
+    )
+
+    def get_current_stage(self) -> int:
+        if not self.data:
+            return 0
+        return self.data[self.OFFSETS["current_level"]]
+
+    def set_current_stage(self, lvl: int):
+        if not self.data:
+            return 0
         self.data[self.OFFSETS["current_level"]] = lvl
+
+    
 
     def reset_exp(self):
         for o in self.OFFSETS["exp"]:
@@ -93,6 +146,12 @@ class SaveFile:
 
     def get_legions(self) -> list[Legion]:
         return [
+        Legion(
+            name="Empty",
+            max_level=None,
+            is_unlocked=self.all_legions_locked,
+            unlock=self.lock_all_legions
+        ),
         Legion(
             name="Guild",
             max_level=None,
@@ -106,10 +165,34 @@ class SaveFile:
             unlock=self.unlock_malice
         ),
         Legion(
+            name="Blasphemous",
+            max_level=None,
+            is_unlocked=self.blasphemous_unlocked,
+            unlock=self.unlock_blasphemous
+        ),
+        Legion(
+            name="Arrogance",
+            max_level=None,
+            is_unlocked=self.arrogance_unlocked,
+            unlock=self.unlock_arrogance
+        ),
+        Legion(
+            name="Flawed",
+            max_level=None,
+            is_unlocked=self.flawed_unlocked,
+            unlock=self.unlock_flawed
+        ),
+        Legion(
+            name="Hatred",
+            max_level=None,
+            is_unlocked=self.hatred_unlocked,
+            unlock=self.unlock_hatred
+        ),
+        Legion(
             name="Thanatos",
             max_level=3,
             is_unlocked=self.thanatos_unlocked,
             unlock=self.unlock_thanatos,
-            #set_level=self.set_thanatos_level(lvl)
+            #set_level=self.set_thanatos_level()
         )
     ]

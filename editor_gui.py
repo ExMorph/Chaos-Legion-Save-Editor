@@ -1,55 +1,58 @@
-# editor_gui.py
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 from save_logic import SaveFile
 
 class SaveEditorGUI:
     def __init__(self, root):
-        self.icons = {}
         self.root = root
+        self.icons = {}
+        self.save = SaveFile()
         self.load_icons()
-       
+
         self.root.title("Chaos Legion Save Editor")
 
-        self.save = SaveFile()
-
+        # --- выбор файла ---
         tk.Button(root, text="Select Save File", command=self.select_file).pack(pady=5)
-
         self.file_label = tk.Label(root, text="No file selected", wraplength=480)
         self.file_label.pack()
 
-        self.status_frame = tk.LabelFrame(root, text="Legions")
-        self.status_frame.pack(padx=10, pady=10, fill="x")
+        # --- блок Stage как кнопка ---
+        self.stage_frame = tk.LabelFrame(root, text="Stage")
+        self.stage_frame.pack(padx=10, pady=10, fill="x")
 
-        self.lbl_guild = tk.Label(self.status_frame, text="Guild: N/A")
-        self.lbl_hatred = tk.Label(self.status_frame, text="Hatred: N/A") #NA
-        self.lbl_malice = tk.Label(self.status_frame, text="Malice: N/A")
-        self.lbl_blasphemy = tk.Label(self.status_frame, text="Blasphemy: N/A") #NA
-        self.lbl_arrogance = tk.Label(self.status_frame, text="Arrogance: N/A") #NA
-        self.lbl_flawed = tk.Label(self.status_frame, text="Flawed: N/A") #NA
-        self.lbl_thanatos = tk.Label(self.status_frame, text="Thanatos: N/A")
+        self.stage_button = tk.Button(
+            self.stage_frame,
+            text="Current Level: N/A",
+            compound="left",
+            width=220,
+            command=self.open_stage_window
+        )
+        self.stage_button.pack(padx=10, pady=5)
 
-        self.lbl_guild.pack(anchor="w")
-        self.lbl_hatred.pack(anchor="w")
-        self.lbl_malice.pack(anchor="w")
-        self.lbl_blasphemy.pack(anchor="w")
-        self.lbl_arrogance.pack(anchor="w")
-        self.lbl_flawed.pack(anchor="w")
-        self.lbl_thanatos.pack(anchor="w")
+        # --- блок Legions ---
+        self.legions_frame = tk.LabelFrame(root, text="Legions")
+        self.legions_frame.pack(padx=10, pady=10, fill="x")
 
-        tk.Button(root, text="Legion Unlock", command=self.legion_menu).pack(pady=5)
-        tk.Button(root, text="Set Level", command=self.level_menu).pack(pady=5)
+        self.create_legion_buttons()
+
+        # --- кнопка сохранени¤ ---
         tk.Button(root, text="Save & Exit", command=self.save_and_exit).pack(pady=5)
 
     # ---------- GUI Actions ----------
 
     def load_icons(self):
         try:
-            self.icons[f"thanatos"] = tk.PhotoImage(file=f"icons/thanatos/Main.png")
-            self.icons[f"guild"] = tk.PhotoImage(file=f"icons/guild/Main.png")
-            self.icons[f"malice"] = tk.PhotoImage(file=f"icons/malice/Main.png")
-            for lvl in range(2):
-                self.icons[f"game_level"] = tk.PhotoImage(
+            self.icons["thanatos"] = tk.PhotoImage(file="icons/thanatos/Main.png")
+            self.icons["guild"] = tk.PhotoImage(file="icons/guild/Main.png")
+            self.icons["malice"] = tk.PhotoImage(file="icons/malice/Main.png")
+            self.icons["blasphemous"] = tk.PhotoImage(file="icons/blasphemous/Main.png")
+            self.icons["arrogance"] = tk.PhotoImage(file="icons/arrogance/Main.png")
+            self.icons["flawed"] = tk.PhotoImage(file="icons/flawed/Main.png")
+            self.icons["hatred"] = tk.PhotoImage(file="icons/hatred/Main.png")
+            self.icons["empty"] = tk.PhotoImage(file="icons/sieg/Main.png")
+
+            for lvl in range(15):  # уровни 0Ц14
+                self.icons[f"game_level_{lvl}"] = tk.PhotoImage(
                     file=f"icons/game_levels/lvl{lvl}.png"
                 )
         except Exception as e:
@@ -67,105 +70,124 @@ class SaveEditorGUI:
             return
 
         self.file_label.config(text=path)
-        self.refresh_status()
+        self.refresh_stage()
+        self.create_legion_buttons()
 
-    def refresh_status(self):
-        self.lbl_guild.config(
-            text=f"Guild: {'UNLOCKED' if self.save.guild_unlocked() else 'LOCKED'}"
-        )
-        self.lbl_malice.config(
-            text=f"Malice: {'UNLOCKED' if self.save.malice_unlocked() else 'LOCKED'}"
-        )
-        self.lbl_thanatos.config(
-            text=f"Thanatos: {'UNLOCKED' if self.save.thanatos_unlocked() else 'LOCKED'}"
-        )
+    def refresh_stage(self):
+        if not self.save.data:
+            self.stage_button.config(text="Current Level: N/A", image="")
+            return
 
-    def legion_menu(self):
+        current = self.save.get_current_stage()
+        self.stage_button.config(text=f"Current Level: {current}")
+
+        icon = self.icons.get(f"game_level_{current}")
+        if icon:
+            self.stage_button.config(image=icon)
+            self.stage_button.image = icon
+
+    def open_stage_window(self):
         if not self.save.data:
             messagebox.showwarning("No save", "Load save first")
             return
 
         win = tk.Toplevel(self.root)
-        win.title("Legions")
+        win.title("Select Stage")
+
+        grid = tk.Frame(win)
+        grid.pack(padx=10, pady=10)
+
+        for lvl in range(15):  # уровни 0Ц14
+            icon = self.icons.get(f"game_level_{lvl}")
+            btn = tk.Button(
+                grid,
+                text=f"{lvl:02}",
+                image=icon,
+                compound="top",
+                width=70,
+                height=70,
+                command=lambda l=lvl: self._apply_stage(l, win)
+            )
+            btn.grid(row=lvl // 5, column=lvl % 5, padx=5, pady=5)
+
+    def _apply_stage(self, lvl, win):
+        self.save.set_current_stage(lvl)
+        self.refresh_stage()
+        self.save.save()
+        messagebox.showinfo("Done", f"Stage set to {lvl}")
+        win.destroy()
+
+    def create_legion_buttons(self):
+        # очищаем рамку
+        for widget in self.legions_frame.winfo_children():
+            widget.destroy()
+
+        if not self.save.data:
+            tk.Label(self.legions_frame, text="Load save first").pack()
+            return
 
         for legion in self.save.get_legions():
             unlocked = legion.is_unlocked()
-            color = "green" if unlocked else "red"
             status = "UNLOCKED" if unlocked else "LOCKED"
-            icon = self.icons.get(f"{legion.name.lower()}")
+            color = "green" if unlocked else "red"
+            icon = self.icons.get(legion.name.lower())
+                    
 
+            # создаЄм кнопку с отладкой
             btn = tk.Button(
-            win,
-            text=f"{legion.name} [{status}]",
-            image=icon,
-            compound="left",
-            anchor="w",
-            width=220,
-            command=lambda l=legion: self._on_legion_selected(l, win)
+                self.legions_frame,
+                text=f"{legion.name} [{status}]",
+                image=icon,
+                compound="left",
+                anchor="w",
+                width=220,
+                fg=color,
+                command=lambda l=legion: self._on_legion_selected(l)
             )
-            btn.pack(padx=10, pady=5)
+            btn.pack(padx=10, pady=5, fill="x")
 
-    def _on_legion_selected(self, legion, win):
+
+    def _can_unlock_legion(self, legion):
+        mask = self.save.data[self.save.OFFSETS["legions_mask"]]
+
+        if legion.name == "Empty":
+            # Guild доступен всегда
+            return True
+        if legion.name == "Guild":
+            # Guild доступен всегда
+            return True
+        if legion.name == "Malice":
+            # Malice доступен всегда (по логике SaveFile)
+            return True
+        if legion.name == "Thanatos":
+            # Thanatos доступен только при маске 0xF7
+            return True
+        return False
+
+
+    def _on_legion_selected(self, legion):
+        mask_before = self.save.data[self.save.OFFSETS["legions_mask"]]
+        print(f"Unlocking {legion.name}, mask before: {hex(mask_before)}")
+
         legion.unlock()
-        self.refresh_status()
-        messagebox.showinfo("Done", f"{legion.name} updated")
-        win.destroy()
 
-    def _unlock_legion(self, fn, win):
-        fn()
-        self.refresh_status()
-        messagebox.showinfo("Done", "Legion updated")
-        win.destroy()
+        mask_after = self.save.data[self.save.OFFSETS["legions_mask"]]
+        print(f"mask after: {hex(mask_after)}")
 
-    def legion_level_menu(self, legion):
-        if legion.max_level is None:
-            return
-
-        win = tk.Toplevel(self.root)
-        win.title(f"{legion.name} Level")
-
-        for lvl in range(legion.max_level + 1):
-            btn = tk.Button(
-                win,
-                text=f"Level {lvl}",
-                width=25,
-                command=lambda l=lvl: self._set_legion_level(legion, l, win)
-            )
-            btn.pack(padx=10, pady=4)
-
-    def _set_legion_level(self, legion, lvl, win):
-        if legion.set_level is None:
-            return
-
-        legion.set_level(lvl)
+        #self.refresh_status()
+        if legion.name == "Empty":
+            messagebox.showinfo("Done", f"All legions locked \nWarning! \nWhen opening the Level Up menu the game crashes \nLoad your save file and resave")
+        else:
+            messagebox.showinfo("Done", f"{legion.name} unlocked \nLoad your save file and resave")
+        self.create_legion_buttons()
         self.save.save()
 
-        messagebox.showinfo("Done", f"{legion.name} level set to {lvl}")
-        win.destroy()
-
-    def level_menu(self):
-        if not self.save.data:
-            messagebox.showwarning("No save", "Load save first")
-            return
-
-        choice = simpledialog.askinteger(
-            "Level",
-            "1 - 14\n0 - Cancel",
-            minvalue=0,
-            maxvalue=14
-        )
-
-        if 0 <= choice <= 14:
-            self.save.set_level(choice)
-        else:
-            return
-
-        self.refresh_status()
-        messagebox.showinfo("Done", "Level updated")
 
     def save_and_exit(self):
         self.save.save()
         self.root.destroy()
+
+
 
 
 if __name__ == "__main__":

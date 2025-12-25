@@ -29,14 +29,28 @@
     <Folder Include="icons\game_levels\" />
     <Folder Include="Icons\Guild\" />
     <Folder Include="icons\malice\" />
+    <Folder Include="Icons\sieg\" />
     <Folder Include="Icons\thanatos\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icons\game_levels\lvl0.png" />
     <Content Include="Icons\game_levels\lvl1.png" />
+    <Content Include="Icons\game_levels\lvl10.png" />
+    <Content Include="Icons\game_levels\lvl11.png" />
+    <Content Include="Icons\game_levels\lvl12.png" />
+    <Content Include="Icons\game_levels\lvl13.png" />
+    <Content Include="Icons\game_levels\lvl14.png" />
     <Content Include="Icons\game_levels\lvl2.png" />
+    <Content Include="Icons\game_levels\lvl3.png" />
+    <Content Include="Icons\game_levels\lvl4.png" />
+    <Content Include="Icons\game_levels\lvl5.png" />
+    <Content Include="Icons\game_levels\lvl6.png" />
+    <Content Include="Icons\game_levels\lvl7.png" />
+    <Content Include="Icons\game_levels\lvl8.png" />
+    <Content Include="Icons\game_levels\lvl9.png" />
     <Content Include="Icons\Guild\Main.png" />
     <Content Include="icons\malice\Main.png" />
+    <Content Include="Icons\sieg\Main.png" />
     <Content Include="Icons\Thanatos\Main.png" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
