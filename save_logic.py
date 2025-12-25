@@ -24,10 +24,24 @@ class SaveFile:
 
     OFFSETS = {
         "legions_mask": 0x15,
+        "slot1": 0x16,
+        "slot2": 0x17,
         "current_level": 0x201,
         "sword_exp": (0x49, 0x4A, 0x4B),
         "thanatos_exp": (0x65, 0x66, 0x67, 0x68),
         "thanatos_level": 0x43,
+    }
+
+    LEGION_SLOTS = {
+        0x00: "Guilt",
+        0x01: "Hatred",
+        0x02: "Malice",
+        # 0x03 пропускаем
+        0x04: "Arrogance",
+        0x05: "Flawed",
+        0x06: "Blasphemy",
+        0x07: "Thanatos",
+        0xFF: "Empty"
     }
 
     LEGION_BITS = [
@@ -95,6 +109,16 @@ class SaveFile:
             )
         return legions
 
+    def get_equipped_legion(self, slot: int) -> str:
+        offset = self.OFFSETS[f"slot{slot}"]
+        val = self.data[offset]
+        return self.LEGION_SLOTS.get(val, "Unknown")
+
+    def set_equipped_legion(self, slot: int, val: int):
+        if val not in self.LEGION_SLOTS:
+            raise ValueError("Invalid legion slot value")
+        self.data[self.OFFSETS[f"slot{slot}"]] = val
+
     # ---------- Stage ----------
     def get_game_level_target(self):
         return LevelTarget(
@@ -113,9 +137,6 @@ class SaveFile:
         if not self.data:
             return
         self.data[self.OFFSETS["current_level"]] = lvl
-
-
-    
 
     def reset_exp(self):
         for o in self.OFFSETS["exp"]:

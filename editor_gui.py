@@ -10,13 +10,14 @@ class SaveEditorGUI:
         self.load_icons()
 
         self.root.title("Chaos Legion Save Editor")
+        self.root.geometry("400x900")  # пример, подгони под нужный размер
 
         # --- выбор файла ---
         tk.Button(root, text="Select Save File", command=self.select_file).pack(pady=5)
         self.file_label = tk.Label(root, text="No file selected", wraplength=480)
         self.file_label.pack()
 
-        # --- блок Stage как кнопка ---
+        # --- блок Stage ---
         self.stage_frame = tk.LabelFrame(root, text="Stage")
         self.stage_frame.pack(padx=10, pady=10, fill="x")
 
@@ -24,10 +25,28 @@ class SaveEditorGUI:
             self.stage_frame,
             text="Current Level: N/A",
             compound="left",
+            anchor="w",
             width=220,
             command=self.open_stage_window
         )
-        self.stage_button.pack(padx=10, pady=5)
+        self.stage_button.pack(padx=10, pady=5, fill="x")
+
+        # --- блок Equipped Legions ---
+        self.equipped_frame = tk.LabelFrame(root, text="Equipped Legions")
+        self.equipped_frame.pack(padx=10, pady=10, fill="x")
+
+        self.slot_buttons = []
+        for i in range(1, 3):
+            btn = tk.Button(
+                self.equipped_frame,
+                text=f"Slot {i}: N/A",
+                compound="left",
+                anchor="w",
+                width=220,
+                command=lambda s=i: self.open_legion_select_window(s)
+            )
+            btn.pack(padx=10, pady=5, fill="x")
+            self.slot_buttons.append(btn)
 
         # --- блок Legions ---
         self.legions_frame = tk.LabelFrame(root, text="Legions")
@@ -35,8 +54,34 @@ class SaveEditorGUI:
 
         self.create_legion_buttons()
 
-        # --- кнопка сохранени¤ ---
-        tk.Button(root, text="Exit", command=self.save_and_exit).pack(pady=5)
+        # --- кнопка сохранения ---
+        tk.Button(root, text="Save & Exit", command=self.save_and_exit).pack(pady=5)
+
+        # --- автообновление при фокусе ---
+        self.root.bind("<FocusIn>", lambda e: self.refresh_all())
+
+    # ---------- Refresh helpers ----------
+    def refresh_all(self):
+        if not self.save.data:
+            return
+        self.refresh_stage()
+        self.refresh_equipped()
+        self.create_legion_buttons()
+
+    def refresh_equipped(self):
+        if not self.save.data:
+            for i, btn in enumerate(self.slot_buttons, start=1):
+                btn.config(text=f"Slot {i}: N/A", image="")
+            return
+
+        for i, btn in enumerate(self.slot_buttons, start=1):
+            legion_name = self.save.get_equipped_legion(i)
+            btn.config(text=f"Slot {i}: {legion_name}")
+            icon = self.icons.get(legion_name.lower())
+            if icon:
+                btn.config(image=icon)
+                btn.image = icon
+
 
     # ---------- GUI Actions ----------
 
@@ -49,7 +94,7 @@ class SaveEditorGUI:
             self.icons["arrogance"] = tk.PhotoImage(file="icons/arrogance/Main.png")
             self.icons["flawed"] = tk.PhotoImage(file="icons/flawed/Main.png")
             self.icons["hatred"] = tk.PhotoImage(file="icons/hatred/Main.png")
-            self.icons["empty"] = tk.PhotoImage(file="icons/sieg/Main.png")
+            self.icons["empty"] = tk.PhotoImage(file="icons/empty/Main.png")
 
             for lvl in range(15):  # уровни 0Ц14
                 self.icons[f"game_level_{lvl}"] = tk.PhotoImage(
@@ -71,6 +116,7 @@ class SaveEditorGUI:
 
         self.file_label.config(text=path)
         self.refresh_stage()
+        self.refresh_equipped()
         self.create_legion_buttons()
 
     def refresh_stage(self):
@@ -114,8 +160,16 @@ class SaveEditorGUI:
         self.save.set_current_stage(lvl)
         self.refresh_stage()
         self.save.save()
-        messagebox.showinfo("Done", f"Stage set to {lvl}")
+
+        if lvl == 1:
+            messagebox.showinfo("Notice", "When loading, the game will automatically start Stage 1.")
+        elif lvl == 0:
+            messagebox.showwarning("Warning", "Stage 0 may cause the game to crash when loading.")
+        else:
+            messagebox.showinfo("Done", f"Stage set to {lvl}")
+
         win.destroy()
+
 
     def create_legion_buttons(self):
         # очищаем рамку
@@ -172,6 +226,56 @@ class SaveEditorGUI:
         self.create_legion_buttons()
         self.save.save()
 
+    def refresh_equipped(self):
+        if not self.save.data:
+            for i, btn in enumerate(self.slot_buttons, start=1):
+                btn.config(text=f"Slot {i}: N/A", image="")
+            return
+
+        for i, btn in enumerate(self.slot_buttons, start=1):
+            legion_name = self.save.get_equipped_legion(i)
+            btn.config(text=f"Slot {i}: {legion_name}")
+            icon = self.icons.get(legion_name.lower())
+            if icon:
+                btn.config(image=icon)
+                btn.image = icon
+
+    def open_legion_select_window(self, slot: int):
+        if not self.save.data:
+            messagebox.showwarning("No save", "Load save first")
+            return
+
+        win = tk.Toplevel(self.root)
+        win.title(f"Select Legion for Slot {slot}")
+
+        grid = tk.Frame(win)
+        grid.pack(padx=10, pady=10)
+
+        # список для выбора (без Null/0x03)
+        choices = [(0x00, "Guilt"), (0x01, "Hatred"), (0x02, "Malice"),
+                   (0x04, "Arrogance"), (0x05, "Flawed"),
+                   (0x06, "Blasphemy"), (0x07, "Thanatos"),
+                   (0xFF, "Empty")]
+
+        for idx, (val, name) in enumerate(choices):
+            icon = self.icons.get(name.lower())
+            btn = tk.Button(
+                grid,
+                text=name,
+                image=icon,
+                compound="top",
+                width=70,
+                height=70,
+                command=lambda v=val, n=name: self._apply_legion_slot(slot, v, n, win)
+            )
+            btn.grid(row=idx // 4, column=idx % 4, padx=5, pady=5)
+
+    def _apply_legion_slot(self, slot: int, index: int, name: str, win):
+        self.save.set_equipped_legion(slot, index)
+        self.refresh_equipped()
+        self.save.save()
+        messagebox.showinfo("Done", f"Slot {slot} set to {name}")
+        win.destroy()
 
     def save_and_exit(self):
         self.root.destroy()
